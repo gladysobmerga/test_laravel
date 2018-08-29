@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+
 
 class LoginController extends Controller
 {
@@ -35,5 +40,31 @@ class LoginController extends Controller
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
+    }
+
+    public function login(Request $request)
+    {
+        $this->validateLogin($request);
+
+        if ($this->hasTooManyLoginAttempts($request)) {
+            $this->fireLockoutEvent($request);
+
+            return $this->sendLockoutResponse($request);
+        }
+
+        if($this->guard()->validate($this->credentials($request))) {
+            if(Auth::attempt(['email' => $request->email, 'password' => $request->password, 'status' => 1])) {
+                return redirect()->intended('home');
+            }  else {
+                $this->incrementLoginAttempts($request);
+                throw ValidationException::withMessages([
+                    $this->username() => [trans('Account is not yet verified.')],
+                ]);
+            }
+        } else {
+            // dd('ok');
+            $this->incrementLoginAttempts($request);
+            return $this->sendFailedLoginResponse($request);
+        }
     }
 }
